@@ -125,6 +125,39 @@ def process_snipe(evnt_body):
         }
     }
 
+# Should we later add a feature to tell the user their actual numberical rank rather than just their stats?
+# what info to tell the user?
+#   how many times theyve sniped others
+#   how many times theyve been sniped
+#   their K/D ratio
+def get_own_rank(author_id):
+    response_table = PrettyTable()
+    response_table.field_names = ["As Sniper Count", "As Snipee Count", "K/D Ratio"]
+    response = dynamodb.get_item(
+        TableName='SnipeLeaderboards',
+        Key={'UserId':{'S':author_id}}
+    )
+    if 'Item' in response:
+        response_table.add_row([
+            response['Item']['AsSniper']['N'],
+            response['Item']['AsSnipee']['N'],
+            str(round(int(response['Item']['AsSniper']['N'])/int(response['Item']['AsSnipee']['N']), 3))
+        ])
+    else:
+        response_table.add_row(["0", "0", "N/A"])
+    
+    message = "```\n" + response_table.get_string() + "\n```"
+    
+    return {
+        "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
+        "data": {
+            "tts": False,
+            "content": message,
+            "embeds": [],
+            "allowed_mentions": []
+        }
+    }
+
 # prints the top 20 on both the Sniper leaderboard and the Snipee leaderboard
 def get_top():
     # query the SniperLeaderboard GSI
@@ -156,6 +189,7 @@ def get_top():
             ':game': {'S': 'SNIPE'}
         }
     )
+    
     
     sniper_table = PrettyTable()
     sniper_table.field_names = ["RANK", "USER", "SNIPES"]
@@ -191,9 +225,6 @@ def get_top():
     }
 
 def lambda_handler(event, context):
-    
-    print("Processing event...")
-    
     # verify the signature
     try:
         verify_signature(event)
@@ -208,24 +239,16 @@ def lambda_handler(event, context):
     if operation == "snipe-leaderboard":
         return get_top()
     elif operation == "snipe-rank":
-        # return get_own_rank(message)
-        return {
-            "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
-            "data": {
-                "tts": False,
-                "content": "TODO snipe-rank",
-                "embeds": [],
-                "allowed_mentions": []
-            }
-        }
+        return get_own_rank(event['body-json']['member']['user']['id'])
     elif operation == "snipe":
         return process_snipe(event['body-json'])
     else:
+        # this should not happen
         return {
             "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
             "data": {
                 "tts": False,
-                "content": "TODO something went wrong",
+                "content": "something went wrong",
                 "embeds": [],
                 "allowed_mentions": []
             }
