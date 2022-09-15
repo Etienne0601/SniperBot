@@ -23,6 +23,7 @@ snipe admin void - voids all snipes recorded by some message ID
 
 Admin commands require server administrator priviledges.
 
+### New Slash Command Interface
 For the slash command structure, there will be a `/snipe` command to create a snipe, a `/snipe-leaderboard` command to view the snipe leaderboard, a `/snipe-rank` command to view your own stats and K/D ratio. The admin slash commands will be TBD, but they will include at least `/snipe-void` to void snipes by the SnipeId.
 
 I discovered that via the "Manage Interactions" menu you can choose in which channels users can use the slash commands. I think that means there would not be a need to store which channels the bot can be used in like is done [here](https://github.com/maksymovi/sniperBot/blob/master/src/sniperbot.py#L57).
