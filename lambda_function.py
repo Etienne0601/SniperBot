@@ -257,6 +257,7 @@ def get_top():
     users_snipee = ""
     snipes_snipee = ""
     
+    
     # query the SniperLeaderboard GSI
     sniper_response = dynamodb.query(
         TableName='SnipeLeaderboards',
@@ -286,6 +287,17 @@ def get_top():
             ':game': {'S': 'SNIPE'}
         }
     )
+    
+    if len(sniper_response['Items']) == 0 or len(snipee_response['Items']) == 0:
+        return {
+            "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
+            "data": {
+                "tts": False,
+                "content": "No data exists to display",
+                "embeds": [],
+                "allowed_mentions": []
+            }
+        }
     
     for rank, entry in enumerate(sniper_response['Items']):
         snipe_count = entry['AsSniper']['N']
