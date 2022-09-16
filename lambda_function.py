@@ -5,7 +5,6 @@ import boto3
 import datetime
 import requests
 from dotenv import load_dotenv
-from prettytable import PrettyTable
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
 
@@ -131,35 +130,47 @@ def process_snipe(evnt_body):
 #   how many times theyve been sniped
 #   their K/D ratio
 def get_own_rank(author_id):
-    response_table = PrettyTable()
-    response_table.field_names = ["As Sniper Count", "As Snipee Count", "K/D Ratio"]
+    fields = []
     response = dynamodb.get_item(
         TableName='SnipeLeaderboards',
         Key={'UserId':{'S':author_id}}
     )
     if 'Item' in response:
-        response_table.add_row([
-            response['Item']['AsSniper']['N'],
-            response['Item']['AsSnipee']['N'],
-            str(round(int(response['Item']['AsSniper']['N'])/int(response['Item']['AsSnipee']['N']), 3))
-        ])
+        fields.append({"name":"Sniper Count","value":response['Item']['AsSniper']['N'],"inline":False})
+        fields.append({"name":"Snipee Count","value":response['Item']['AsSnipee']['N'],"inline":False})
+        fields.append({"name":"K/D Ratio","value":str(round(int(response['Item']['AsSniper']['N'])/int(response['Item']['AsSnipee']['N']), 3)),"inline":False})
     else:
-        response_table.add_row(["0", "0", "N/A"])
-    
-    message = "```\n" + response_table.get_string() + "\n```"
+        fields.append({"name":"Sniper Count","value":"0","inline":False})
+        fields.append({"name":"Snipee Count","value":"0","inline":False})
+        fields.append({"name":"K/D Ratio","value":"N/A","inline":False})
     
     return {
         "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
         "data": {
             "tts": False,
-            "content": message,
-            "embeds": [],
+            "content": "",
+            "embeds": [{
+                "title": "Stats",
+                "type": "rich",
+                "color": 1752220,
+                "fields": fields
+            }],
             "allowed_mentions": []
         }
     }
 
 # prints the top 20 on both the Sniper leaderboard and the Snipee leaderboard
 def get_top():
+    fields_sniper = []
+    ranks_sniper = ""
+    users_sniper = ""
+    snipes_sniper = ""
+    
+    fields_snipee = []
+    ranks_snipee = ""
+    users_snipee = ""
+    snipes_snipee = ""
+    
     # query the SniperLeaderboard GSI
     sniper_response = dynamodb.query(
         TableName='SnipeLeaderboards',
@@ -190,36 +201,53 @@ def get_top():
         }
     )
     
-    
-    sniper_table = PrettyTable()
-    sniper_table.field_names = ["RANK", "USER", "SNIPES"]
     for rank, entry in enumerate(sniper_response['Items']):
         snipe_count = entry['AsSniper']['N']
         url = "https://discord.com/api/v9/users/" + entry['UserId']['S']
         headers = {"Authorization": AUTH_HEADER}
         user_response = requests.get(url, headers=headers)
         user_object = json.loads(user_response.content)
-        sniper_table.add_row([str(rank + 1), user_object['username'] + "#" + user_object['discriminator'], snipe_count])
+        ranks_sniper += "\n" + str(rank + 1)
+        users_sniper += "\n" + user_object['username'] + "#" + user_object['discriminator']
+        snipes_sniper += "\n" + snipe_count
     
+    fields_sniper.append({"name":"RANK","value":ranks_sniper,"inline":True})
+    fields_sniper.append({"name":"USER","value":users_sniper,"inline":True})
+    fields_sniper.append({"name":"SNIPES","value":snipes_sniper,"inline":True})
     
-    snipee_table = PrettyTable()
-    snipee_table.field_names = ["RANK", "USER", "SNIPES"]
     for rank, entry in enumerate(snipee_response['Items']):
         snipe_count = entry['AsSnipee']['N']
         url = "https://discord.com/api/v9/users/" + entry['UserId']['S']
         headers = {"Authorization": AUTH_HEADER}
         user_response = requests.get(url, headers=headers)
         user_object = json.loads(user_response.content)
-        snipee_table.add_row([str(rank + 1), user_object['username'] + "#" + user_object['discriminator'], snipe_count])
+        ranks_snipee += "\n" + str(rank + 1)
+        users_snipee += "\n" + user_object['username'] + "#" + user_object['discriminator']
+        snipes_snipee += "\n" + snipe_count
     
-    message = "```\nSNIPER LEADERBOARD\n" + sniper_table.get_string() + "\n```\n```\nSNIPEE LEADERBOARD\n" + snipee_table.get_string() + "\n```"
+    fields_snipee.append({"name":"RANK","value":ranks_snipee,"inline":True})
+    fields_snipee.append({"name":"USER","value":users_snipee,"inline":True})
+    fields_snipee.append({"name":"SNIPES","value":snipes_snipee,"inline":True})
     
     return {
         "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
         "data": {
             "tts": False,
-            "content": message,
-            "embeds": [],
+            "content": "",
+            "embeds": [
+                {
+                    "title": "SNIPER LEADERBOARD",
+                    "type": "rich",
+                    "color": 1752220,
+                    "fields": fields_sniper
+                },
+                {
+                    "title": "SNIPEE LEADERBOARD",
+                    "type": "rich",
+                    "color": 1752220,
+                    "fields": fields_snipee
+                }
+            ],
             "allowed_mentions": []
         }
     }
