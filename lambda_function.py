@@ -33,7 +33,6 @@ def verify_signature(event):
     verify_key = VerifyKey(bytes.fromhex(PUBLIC_KEY))
     verify_key.verify(message, bytes.fromhex(auth_sig)) # raises an error if unequal
 
-
 def process_snipe(evnt_body):
     current_time = str(datetime.datetime.now(datetime.timezone.utc))
     recorded_snipeids = []
@@ -69,7 +68,7 @@ def process_snipe(evnt_body):
         )
         # now we need to update the score for the Snipee leaderboard
         # theres definitely a better approach to do this with condition expressions or something,
-        # to avoid making an additional call to check if the item is in the table
+        # to avoid making an additional API call to check if the item is in the table
         if does_userid_exist(snipee_id):
             # if the item is already in the table then update it
             dynamodb.update_item(
@@ -124,8 +123,6 @@ def process_snipe(evnt_body):
         }
     }
 
-# snipe_id is a string
-# author_perms is an integer
 def void_snipe(snipe_id, author_perms):
     # check if the author is not an admin
     if not author_perms & 8:
@@ -207,10 +204,6 @@ def void_snipe(snipe_id, author_perms):
     }
 
 # Should we later add a feature to tell the user their actual numberical rank rather than just their stats?
-# what info to tell the user?
-#   how many times theyve sniped others
-#   how many times theyve been sniped
-#   their K/D ratio
 def get_own_rank(author_id):
     fields = []
     response = dynamodb.get_item(
