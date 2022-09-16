@@ -124,6 +124,88 @@ def process_snipe(evnt_body):
         }
     }
 
+# snipe_id is a string
+# author_perms is an integer
+def void_snipe(snipe_id, author_perms):
+    # check if the author is not an admin
+    if not author_perms & 8:
+        return {
+            "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
+            "data": {
+                "tts": False,
+                "content": "You are not an administrator, please ping an administrator if you need to issue this command.",
+                "embeds": [],
+                "allowed_mentions": []
+            }
+        }
+    
+    # now verify that the snipe_id corresponds to a real snipe
+    response = dynamodb.get_item(
+        TableName='Snipes',
+        Key={'SnipeId':{'S':snipe_id}}
+    )
+    if 'Item' not in response:
+        message = "ERROR: SnipeId `" + snipe_id + "` does not exist."
+        return {
+            "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
+            "data": {
+                "tts": False,
+                "content": message,
+                "embeds": [],
+                "allowed_mentions": []
+            }
+        }
+    
+    # check if the item has already been voided
+    if response['Item']['Voided']['BOOL']:
+        message = "ERROR: SnipeId `" + snipe_id + "` has already been voided."
+        return {
+            "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
+            "data": {
+                "tts": False,
+                "content": message,
+                "embeds": [],
+                "allowed_mentions": []
+            }
+        }
+    
+    # set the Voided attribute to True
+    dynamodb.update_item(
+        TableName='Snipes',
+        Key={'SnipeId':{'S':snipe_id}},
+        ExpressionAttributeValues={':newValue':{'BOOL':True}},
+        UpdateExpression="SET Voided = :newValue"
+    )
+    
+    sniper_id = response['Item']['SniperId']['S']
+    snipee_id = response['Item']['SnipeeId']['S']
+    # now update the SnipeLeaderboards table to remove the point from both the sniper and snipee
+    # Assuming that the relevant items exist in the SnipeLeaderboards table, since it
+    # should be kept in sync with the Snipes table
+    dynamodb.update_item(
+        TableName='SnipeLeaderboards',
+        Key={'UserId':{'S':sniper_id}},
+        ExpressionAttributeValues={':inc':{'N':'-1'}},
+        UpdateExpression="ADD AsSniper :inc"
+    )
+    dynamodb.update_item(
+        TableName='SnipeLeaderboards',
+        Key={'UserId':{'S':snipee_id}},
+        ExpressionAttributeValues={':inc':{'N':'-1'}},
+        UpdateExpression="ADD AsSnipee :inc"
+    )
+    
+    message = "Successfully voided `" + snipe_id + "`"
+    return {
+        "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
+        "data": {
+            "tts": False,
+            "content": message,
+            "embeds": [],
+            "allowed_mentions": []
+        }
+    }
+
 # Should we later add a feature to tell the user their actual numberical rank rather than just their stats?
 # what info to tell the user?
 #   how many times theyve sniped others
@@ -268,6 +350,8 @@ def lambda_handler(event, context):
         return get_top()
     elif operation == "snipe-rank":
         return get_own_rank(event['body-json']['member']['user']['id'])
+    elif operation == "snipe-void":
+        return void_snipe(event['body-json']['data']['options'][0]['value'], int(event['body-json']['member']['permissions']))
     elif operation == "snipe":
         return process_snipe(event['body-json'])
     else:
