@@ -220,7 +220,11 @@ def get_own_rank(author_id):
     if 'Item' in response:
         fields.append({"name":"Sniper Count","value":response['Item']['AsSniper']['N'],"inline":False})
         fields.append({"name":"Snipee Count","value":response['Item']['AsSnipee']['N'],"inline":False})
-        fields.append({"name":"K/D Ratio","value":str(round(int(response['Item']['AsSniper']['N'])/int(response['Item']['AsSnipee']['N']), 3)),"inline":False})
+        as_snipee_count = int(response['Item']['AsSnipee']['N'])
+        if as_snipee_count == 0:
+            fields.append({"name":"K/D Ratio","value":"N/A","inline":False})
+        else:
+            fields.append({"name":"K/D Ratio","value":str(round(int(response['Item']['AsSniper']['N'])/as_snipee_count, 3)),"inline":False})
     else:
         fields.append({"name":"Sniper Count","value":"0","inline":False})
         fields.append({"name":"Snipee Count","value":"0","inline":False})
