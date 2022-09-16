@@ -3,7 +3,7 @@ A port of https://github.com/maksymovi/sniperBot to Discord slash commands and A
 
 The code is very much still a work in progress.
 
-This bot support a simple game that involves taking a photo of an unsuspecting player when running across them, without them noticing, and posting said photo in chat to score a point.
+This bot supports a simple game that involves taking a photo of an unsuspecting player when running across them, without them noticing, and posting said photo in chat to score a point.
 
 The PUBLIC_KEY and BOT_TOKEN should be added to a file named `.env` in the same directory as `lambda_function.py`.
 
