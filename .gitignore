@@ -2,3 +2,4 @@ src/constants.py
 .cdk.staging/
 cdk.out/
 python/
+dependencies.zip
