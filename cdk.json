@@ -12,7 +12,8 @@
             "cdk/**/__init__.py",
             "cdk/python/__pycache__",
             "LICENSE",
-            "**/.gitignore"
+            "**/.gitignore",
+            "src/registerCommands.py"
         ]
     },
     "context": {

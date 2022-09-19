@@ -1,13 +1,10 @@
-from cgitb import handler
-from json import JSONDecoder, JSONEncoder
-from platform import architecture
-from typing import Mapping
 from constructs import Construct
 from aws_cdk import (
     Stack,
     aws_lambda as _lambda,
     aws_apigateway as apigw,
     Duration,
+    aws_dynamodb as dynamodb,
 )
 
 # taken from https://oozio.medium.com/serverless-discord-bot-55f95f26f743
@@ -18,9 +15,42 @@ class SniperBotStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
-        #Making a layer for the lambda
+
+        # Create DynamoDb Tables
+
+        snipeTable = dynamodb.Table(
+            self,
+            id + "SnipeTable",
+            table_name="Snipes",
+            partition_key=dynamodb.Attribute(name="SnipeId", type=dynamodb.AttributeType.STRING),
+            billing_mode=dynamodb.BillingMode.PROVISIONED
+        )
+        leaderboardTable = dynamodb.Table(
+            self,
+            id + "LeaderboardTable",
+            table_name="SnipeLeaderboards",
+            partition_key=dynamodb.Attribute(name="UserId", type=dynamodb.AttributeType.STRING),
+            billing_mode=dynamodb.BillingMode.PROVISIONED
+
+        )
+
+        leaderboardTable.add_global_secondary_index(
+            index_name="SnipeeLeaderboard",
+            partition_key=dynamodb.Attribute(name="Game", type=dynamodb.AttributeType.STRING),
+            sort_key=dynamodb.Attribute(name="AsSnipee", type=dynamodb.AttributeType.NUMBER),
+            projection_type=dynamodb.ProjectionType.ALL
+        )
+
+        
+        leaderboardTable.add_global_secondary_index(
+            index_name="SniperLeaderboard",
+            partition_key=dynamodb.Attribute(name="Game", type=dynamodb.AttributeType.STRING),
+            sort_key=dynamodb.Attribute(name="AsSniper", type=dynamodb.AttributeType.NUMBER),
+            projection_type=dynamodb.ProjectionType.ALL
+        )
 
 
+        # Making a layer for the lambda
         layer = _lambda.LayerVersion(
             self,
             id + 'Layer',
@@ -40,6 +70,12 @@ class SniperBotStack(Stack):
             architecture= _lambda.Architecture.X86_64,
             layers=[layer]
         )
+
+        # Grant access to tables
+
+        snipeTable.grant_full_access(my_lambda)
+        leaderboardTable.grant_full_access(my_lambda)
+
         api = apigw.RestApi(
             self, id + 'Endpoint',
             default_cors_preflight_options= apigw.CorsOptions(
