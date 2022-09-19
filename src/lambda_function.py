@@ -4,15 +4,11 @@ import os
 import boto3
 import datetime
 import requests
-from dotenv import load_dotenv
+import constants
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
 
-load_dotenv()
-
-PUBLIC_KEY = os.getenv('PUBLIC_KEY')
-AUTH_HEADER = "Bot " + os.getenv('BOT_TOKEN')
-
+AUTH_HEADER = "Bot " + constants.BOT_TOKEN
 PING_PONG = {"type": 1}
 
 dynamodb = boto3.client('dynamodb')
@@ -30,7 +26,7 @@ def verify_signature(event):
     auth_ts  = event['params']['header'].get('x-signature-timestamp')
     
     message = auth_ts.encode() + raw_body.encode()
-    verify_key = VerifyKey(bytes.fromhex(PUBLIC_KEY))
+    verify_key = VerifyKey(bytes.fromhex(constants.PUBLIC_KEY))
     verify_key.verify(message, bytes.fromhex(auth_sig)) # raises an error if unequal
 
 def process_snipe(evnt_body):
