@@ -21,7 +21,7 @@ The PUBLIC_KEY and BOT_TOKEN should be added to a file named `constants.py` in t
 
 This app uses AWS CDK to deploy automatically. To do this you will need to have aws cli installed and cdk. 
 
-To deploy with CDK, run `cdk deploy`. This assumes you have aws configure setup and you have cdk installed (`npm install -g aws-cdk` to install).
+To deploy with CDK, run `cdk deploy`. This assumes you have aws configure setup and you have cdk installed (`npm install -g aws-cdk` to install). `cdk deploy` will return a api endpoint, append `event` to that endpoint and plug they into your Discord application's interactions endpoint.
 
 Command registration right now is manual and is run by the registerCommands.py file. Simply run this file locally and it should handle everything. You may need to `python3 -m pip install -r requirements.txt` to get the necessary dependencies to run locally however. 
 
