@@ -5,7 +5,7 @@ The code is very much still a work in progress.
 
 This bot supports a simple game that involves taking a photo of an unsuspecting player when running across them, without them noticing, and posting said photo in chat to score a point.
 
-The PUBLIC_KEY and BOT_TOKEN should be added to a file named `.env` in the same directory as `lambda_function.py`.
+The PUBLIC_KEY and BOT_TOKEN should be added to a file named `constants.py` in the same directory as `lambda_function.py`.
 
 ## User Guide
 /snipe <@mention> ... - snipe another user. There can be up to five @mentions, and it will record a snipe for each.
