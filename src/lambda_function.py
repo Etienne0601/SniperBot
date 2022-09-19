@@ -1,5 +1,6 @@
 import json
 import uuid
+import os
 import boto3
 import datetime
 import requests
@@ -261,16 +262,6 @@ def get_own_rank(author_id):
 
 # prints the top 20 on both the Sniper leaderboard and the Snipee leaderboard
 def get_top():
-    fields_sniper = []
-    ranks_sniper = ""
-    users_sniper = ""
-    snipes_sniper = ""
-    
-    fields_snipee = []
-    ranks_snipee = ""
-    users_snipee = ""
-    snipes_snipee = ""
-    
     # query the SniperLeaderboard GSI
     sniper_response = dynamodb.query(
         TableName='SnipeLeaderboards',
@@ -312,6 +303,7 @@ def get_top():
             }
         }
     
+    new_sniper_table = ""
     headers = {"Authorization": AUTH_HEADER}
     usernames_map = {} # map of user ids to user strings
     for rank, entry in enumerate(sniper_response['Items']):
@@ -320,31 +312,27 @@ def get_top():
         url = f"https://discord.com/api/v9/users/{user_id}"
         user_response = requests.get(url, headers=headers)
         user_object = json.loads(user_response.content)
-        usernames_map[user_id] = f"{user_object['username']}#{user_object['discriminator']}"
-        ranks_sniper += "\n" + str(rank + 1)
-        users_sniper += "\n" + f"{user_object['username']}#{user_object['discriminator']}"
-        snipes_sniper += "\n" + snipe_count
+        username = user_object['username']
+        usernames_map[user_id] = f"{username}#{user_object['discriminator']}"
+        num_spaces = 16 - len(username)
+        new_sniper_table += "`" + str(rank + 1) + ":  " + username + "#" + user_object['discriminator'] + (" " * num_spaces) + snipe_count + "`\n"
+    new_sniper_table_field = [{"name":"`Rank   User         Snipes`","value":new_sniper_table,"inline":True}]
     
-    fields_sniper.append({"name":"Rank","value":ranks_sniper,"inline":True})
-    fields_sniper.append({"name":"User","value":users_sniper,"inline":True})
-    fields_sniper.append({"name":"Snipes","value":snipes_sniper,"inline":True})
-    
+    new_snipee_table = ""
     for rank, entry in enumerate(snipee_response['Items']):
         snipe_count = entry['AsSnipee']['N']
         user_id = entry['UserId']['S']
+        username = ""
         if user_id in usernames_map:
-            users_snipee += "\n" + usernames_map[user_id]
+            username = usernames_map[user_id]
         else:
             url = f"https://discord.com/api/v9/users/{user_id}"
             user_response = requests.get(url, headers=headers)
             user_object = json.loads(user_response.content)
-            users_snipee += "\n" + f"{user_object['username']}#{user_object['discriminator']}"
-        ranks_snipee += "\n" + str(rank + 1)
-        snipes_snipee += "\n" + snipe_count
-    
-    fields_snipee.append({"name":"Rank","value":ranks_snipee,"inline":True})
-    fields_snipee.append({"name":"User","value":users_snipee,"inline":True})
-    fields_snipee.append({"name":"Snipes","value":snipes_snipee,"inline":True})
+            username = user_object['username'] + "#" + user_object['discriminator']
+        num_spaces = 21 - len(username)
+        new_snipee_table += "`" + str(rank + 1) + ":  " + username + (" " * num_spaces) + snipe_count + "`\n"
+    new_snipee_table_field = [{"name":"`Rank   User         Snipes`","value":new_snipee_table,"inline":True}]
     
     return {
         "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
@@ -356,13 +344,13 @@ def get_top():
                     "title": "Sniper Leaderboard",
                     "type": "rich",
                     "color": 1752220,
-                    "fields": fields_sniper
+                    "fields": new_sniper_table_field
                 },
                 {
                     "title": "Snipee Leaderboard",
                     "type": "rich",
                     "color": 1752220,
-                    "fields": fields_snipee
+                    "fields": new_snipee_table_field
                 }
             ],
             "allowed_mentions": []
