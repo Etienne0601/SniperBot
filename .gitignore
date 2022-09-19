@@ -1,0 +1,4 @@
+src/appSecrets.py
+.cdk.staging/
+cdk.out/
+python/

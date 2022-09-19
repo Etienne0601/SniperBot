@@ -1,17 +1,14 @@
 import json
 import uuid
-import os
 import boto3
 import datetime
 import requests
-from dotenv import load_dotenv
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
+import appSecrets
 
-load_dotenv()
-
-PUBLIC_KEY = os.getenv('PUBLIC_KEY')
-AUTH_HEADER = "Bot " + os.getenv('BOT_TOKEN')
+PUBLIC_KEY = appSecrets.DISCORD_PUBKEY
+AUTH_HEADER = "Bot " + appSecrets.DISCORD_BOT_TOKEN
 
 PING_PONG = {"type": 1}
 
