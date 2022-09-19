@@ -304,12 +304,15 @@ def get_top():
             }
         }
     
+    headers = {"Authorization": AUTH_HEADER}
+    usernames_map = {} # map of user ids to user strings
     for rank, entry in enumerate(sniper_response['Items']):
         snipe_count = entry['AsSniper']['N']
-        url = "https://discord.com/api/v9/users/" + entry['UserId']['S']
-        headers = {"Authorization": AUTH_HEADER}
+        user_id = entry['UserId']['S']
+        url = "https://discord.com/api/v9/users/" + user_id
         user_response = requests.get(url, headers=headers)
         user_object = json.loads(user_response.content)
+        usernames_map[user_id] = user_object['username'] + "#" + user_object['discriminator']
         ranks_sniper += "\n" + str(rank + 1)
         users_sniper += "\n" + user_object['username'] + "#" + user_object['discriminator']
         snipes_sniper += "\n" + snipe_count
@@ -320,12 +323,15 @@ def get_top():
     
     for rank, entry in enumerate(snipee_response['Items']):
         snipe_count = entry['AsSnipee']['N']
-        url = "https://discord.com/api/v9/users/" + entry['UserId']['S']
-        headers = {"Authorization": AUTH_HEADER}
-        user_response = requests.get(url, headers=headers)
-        user_object = json.loads(user_response.content)
+        user_id = entry['UserId']['S']
+        if user_id in usernames_map:
+            users_snipee += "\n" + usernames_map[user_id]
+        else:
+            url = "https://discord.com/api/v9/users/" + user_id
+            user_response = requests.get(url, headers=headers)
+            user_object = json.loads(user_response.content)
+            users_snipee += "\n" + user_object['username'] + "#" + user_object['discriminator']
         ranks_snipee += "\n" + str(rank + 1)
-        users_snipee += "\n" + user_object['username'] + "#" + user_object['discriminator']
         snipes_snipee += "\n" + snipe_count
     
     fields_snipee.append({"name":"RANK","value":ranks_snipee,"inline":True})
