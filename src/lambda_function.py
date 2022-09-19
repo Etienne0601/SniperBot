@@ -58,7 +58,8 @@ def process_snipe(evnt_body):
                 }
             }
         snipe_id = str(uuid.uuid4()).split('-')[0]
-        snipee_ids[snipee_id] = snipe_id + '#' + evnt_body['data']['resolved']['users'][snipee_id]['username']
+        username = evnt_body['data']['resolved']['users'][snipee_id]['username']
+        snipee_ids[snipee_id] = f"{snipe_id}#{username}"
     
     # loop though the snipees to update the databases
     for snipee_id, snipeid_username in snipee_ids.items():
@@ -121,7 +122,6 @@ def process_snipe(evnt_body):
     fields = []
     snipe_ids = ""
     snipees = ""
-    
     for snipee_id, snipeid_username in snipee_ids.items():
         snipe_id, username = snipeid_username.split('#')
         snipe_ids += "\n`" + snipe_id + "`"
@@ -164,7 +164,7 @@ def void_snipe(snipe_id, author_perms):
         Key={'SnipeId':{'S':snipe_id}}
     )
     if 'Item' not in response:
-        message = "ERROR: SnipeId `" + snipe_id + "` does not exist."
+        message = f"ERROR: SnipeId `{snipe_id}` does not exist."
         return {
             "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
             "data": {
@@ -177,7 +177,7 @@ def void_snipe(snipe_id, author_perms):
     
     # check if the item has already been voided
     if response['Item']['Voided']['BOOL']:
-        message = "ERROR: SnipeId `" + snipe_id + "` has already been voided."
+        message = f"ERROR: SnipeId `{snipe_id}` has already been voided."
         return {
             "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
             "data": {
@@ -214,7 +214,7 @@ def void_snipe(snipe_id, author_perms):
         UpdateExpression="ADD AsSnipee :inc"
     )
     
-    message = "Successfully voided `" + snipe_id + "`"
+    message = f"Successfully voided `{snipe_id}`"
     return {
         "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
         "data": {
@@ -307,7 +307,7 @@ def get_top():
             "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
             "data": {
                 "tts": False,
-                "content": "No data exists to display",
+                "content": "No data exists to display.",
                 "embeds": [],
                 "allowed_mentions": []
             }
@@ -318,12 +318,12 @@ def get_top():
     for rank, entry in enumerate(sniper_response['Items']):
         snipe_count = entry['AsSniper']['N']
         user_id = entry['UserId']['S']
-        url = "https://discord.com/api/v9/users/" + user_id
+        url = f"https://discord.com/api/v9/users/{user_id}"
         user_response = requests.get(url, headers=headers)
         user_object = json.loads(user_response.content)
-        usernames_map[user_id] = user_object['username'] + "#" + user_object['discriminator']
+        usernames_map[user_id] = f"{user_object['username']}#{user_object['discriminator']}"
         ranks_sniper += "\n" + str(rank + 1)
-        users_sniper += "\n" + user_object['username'] + "#" + user_object['discriminator']
+        users_sniper += "\n" + f"{user_object['username']}#{user_object['discriminator']}"
         snipes_sniper += "\n" + snipe_count
     
     fields_sniper.append({"name":"Rank","value":ranks_sniper,"inline":True})
@@ -336,10 +336,10 @@ def get_top():
         if user_id in usernames_map:
             users_snipee += "\n" + usernames_map[user_id]
         else:
-            url = "https://discord.com/api/v9/users/" + user_id
+            url = f"https://discord.com/api/v9/users/{user_id}"
             user_response = requests.get(url, headers=headers)
             user_object = json.loads(user_response.content)
-            users_snipee += "\n" + user_object['username'] + "#" + user_object['discriminator']
+            users_snipee += "\n" + f"{user_object['username']}#{user_object['discriminator']}"
         ranks_snipee += "\n" + str(rank + 1)
         snipes_snipee += "\n" + snipe_count
     
