@@ -49,9 +49,10 @@ def process_snipe(evnt_body):
                     "allowed_mentions": []
                 }
             }
+    
     # loop though the snipees
     for option in evnt_body['data']['options']:
-        snipe_id = str(uuid.uuid4())
+        snipe_id = str(uuid.uuid4()).split('-')[0]
         snipee_id = option['value']
         snipeid_username = (snipe_id, evnt_body['data']['resolved']['users'][snipee_id]['username'])
         recorded_snipeids.append(snipeid_username)
@@ -109,16 +110,28 @@ def process_snipe(evnt_body):
             }
         )
     
-    message = "Entry recorded with (SnipeId, Snipee)"
+    fields = []
+    snipe_ids = ""
+    snipees = ""
+    
     for username_snipeid in recorded_snipeids:
-        message += ", `" + str(username_snipeid) + "`"
+        snipe_ids += "\n`" + username_snipeid[0] + "`"
+        snipees += "\n" + username_snipeid[1]
+    
+    fields.append({"name":"SnipeId","value":snipe_ids,"inline":True})
+    fields.append({"name":"Snipee","value":snipees,"inline":True})
     
     return {
         "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
         "data": {
             "tts": False,
-            "content": message,
-            "embeds": [],
+            "content": "",
+            "embeds": [{
+                "title": "Snipes Recorded",
+                "type": "rich",
+                "color": 1752220,
+                "fields": fields
+            }],
             "allowed_mentions": []
         }
     }
@@ -249,7 +262,6 @@ def get_top():
     ranks_snipee = ""
     users_snipee = ""
     snipes_snipee = ""
-    
     
     # query the SniperLeaderboard GSI
     sniper_response = dynamodb.query(
