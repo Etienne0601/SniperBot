@@ -31,27 +31,38 @@ def verify_signature(event):
 
 def process_snipe(evnt_body):
     current_time = str(datetime.datetime.now(datetime.timezone.utc))
-    recorded_snipeids = []
+    snipee_ids = {}
     sniper_id = evnt_body['member']['user']['id']
     # loop through the snipees to verify that the sniper did not try to snipe themself
+    # and also that there are no duplicate snipees
     for option in evnt_body['data']['options']:
-        if option['value'] == sniper_id:
+        snipee_id = option['value']
+        if snipee_id == sniper_id:
             return {
                 "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
                 "data": {
                     "tts": False,
-                    "content": "ERROR: you cannot snipe yourself, please retry",
+                    "content": "ERROR: You cannot snipe yourself, please retry.",
                     "embeds": [],
                     "allowed_mentions": []
                 }
             }
-    
-    # loop though the snipees
-    for option in evnt_body['data']['options']:
+        if snipee_id in snipee_ids:
+            return {
+                "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
+                "data": {
+                    "tts": False,
+                    "content": "ERROR: You cannot snipe a player more than once, please retry.",
+                    "embeds": [],
+                    "allowed_mentions": []
+                }
+            }
         snipe_id = str(uuid.uuid4()).split('-')[0]
-        snipee_id = option['value']
-        snipeid_username = (snipe_id, evnt_body['data']['resolved']['users'][snipee_id]['username'])
-        recorded_snipeids.append(snipeid_username)
+        snipee_ids[snipee_id] = snipe_id + '#' + evnt_body['data']['resolved']['users'][snipee_id]['username']
+    
+    # loop though the snipees to update the databases
+    for snipee_id, snipeid_username in snipee_ids.items():
+        snipe_id, username = snipeid_username.split('#')
         # add the snipe entry to the Snipes database
         dynamodb.put_item(
             TableName='Snipes',
@@ -85,6 +96,7 @@ def process_snipe(evnt_body):
                     'Game':{'S':'SNIPE'}
                 }
             )
+    
     # now we need to increment the score for the Sniper leaderboard by len(evnt_body['data']['options'])
     if does_userid_exist(sniper_id):
         # if the item is already in the table then update it
@@ -110,9 +122,10 @@ def process_snipe(evnt_body):
     snipe_ids = ""
     snipees = ""
     
-    for username_snipeid in recorded_snipeids:
-        snipe_ids += "\n`" + username_snipeid[0] + "`"
-        snipees += "\n" + username_snipeid[1]
+    for snipee_id, snipeid_username in snipee_ids.items():
+        snipe_id, username = snipeid_username.split('#')
+        snipe_ids += "\n`" + snipe_id + "`"
+        snipees += "\n" + username
     
     fields.append({"name":"SnipeId","value":snipe_ids,"inline":True})
     fields.append({"name":"Snipee","value":snipees,"inline":True})
@@ -313,9 +326,9 @@ def get_top():
         users_sniper += "\n" + user_object['username'] + "#" + user_object['discriminator']
         snipes_sniper += "\n" + snipe_count
     
-    fields_sniper.append({"name":"RANK","value":ranks_sniper,"inline":True})
-    fields_sniper.append({"name":"USER","value":users_sniper,"inline":True})
-    fields_sniper.append({"name":"SNIPES","value":snipes_sniper,"inline":True})
+    fields_sniper.append({"name":"Rank","value":ranks_sniper,"inline":True})
+    fields_sniper.append({"name":"User","value":users_sniper,"inline":True})
+    fields_sniper.append({"name":"Snipes","value":snipes_sniper,"inline":True})
     
     for rank, entry in enumerate(snipee_response['Items']):
         snipe_count = entry['AsSnipee']['N']
@@ -330,9 +343,9 @@ def get_top():
         ranks_snipee += "\n" + str(rank + 1)
         snipes_snipee += "\n" + snipe_count
     
-    fields_snipee.append({"name":"RANK","value":ranks_snipee,"inline":True})
-    fields_snipee.append({"name":"USER","value":users_snipee,"inline":True})
-    fields_snipee.append({"name":"SNIPES","value":snipes_snipee,"inline":True})
+    fields_snipee.append({"name":"Rank","value":ranks_snipee,"inline":True})
+    fields_snipee.append({"name":"User","value":users_snipee,"inline":True})
+    fields_snipee.append({"name":"Snipes","value":snipes_snipee,"inline":True})
     
     return {
         "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
@@ -341,13 +354,13 @@ def get_top():
             "content": "",
             "embeds": [
                 {
-                    "title": "SNIPER LEADERBOARD",
+                    "title": "Sniper Leaderboard",
                     "type": "rich",
                     "color": 1752220,
                     "fields": fields_sniper
                 },
                 {
-                    "title": "SNIPEE LEADERBOARD",
+                    "title": "Snipee Leaderboard",
                     "type": "rich",
                     "color": 1752220,
                     "fields": fields_snipee
