@@ -12,6 +12,7 @@ AUTH_HEADER = "Bot " + constants.BOT_TOKEN
 PING_PONG = {"type": 1}
 
 dynamodb = boto3.client('dynamodb')
+lambda_client = boto3.client('lambda')
 
 def does_userid_exist(userid):
     response = dynamodb.get_item(
@@ -260,103 +261,6 @@ def get_own_rank(author_id):
         }
     }
 
-# prints the top 20 on both the Sniper leaderboard and the Snipee leaderboard
-def get_top():
-    # query the SniperLeaderboard GSI
-    sniper_response = dynamodb.query(
-        TableName='SnipeLeaderboards',
-        IndexName='SniperLeaderboard',
-        Select='SPECIFIC_ATTRIBUTES',
-        Limit=20,
-        ScanIndexForward=False, # descending order
-        ReturnConsumedCapacity='NONE',
-        ProjectionExpression='UserId, AsSniper',
-        KeyConditionExpression='Game = :game',
-        ExpressionAttributeValues={
-            ':game': {'S': 'SNIPE'}
-        }
-    )
-    
-    # query the SnipeeLeaderboard GSI
-    snipee_response = dynamodb.query(
-        TableName='SnipeLeaderboards',
-        IndexName='SnipeeLeaderboard',
-        Select='SPECIFIC_ATTRIBUTES',
-        Limit=20,
-        ScanIndexForward=False, # descending order
-        ReturnConsumedCapacity='NONE',
-        ProjectionExpression='UserId, AsSnipee',
-        KeyConditionExpression='Game = :game',
-        ExpressionAttributeValues={
-            ':game': {'S': 'SNIPE'}
-        }
-    )
-    
-    if len(sniper_response['Items']) == 0 or len(snipee_response['Items']) == 0:
-        return {
-            "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
-            "data": {
-                "tts": False,
-                "content": "No data exists to display.",
-                "embeds": [],
-                "allowed_mentions": []
-            }
-        }
-    
-    new_sniper_table = ""
-    headers = {"Authorization": AUTH_HEADER}
-    usernames_map = {} # map of user ids to user strings
-    for rank, entry in enumerate(sniper_response['Items']):
-        snipe_count = entry['AsSniper']['N']
-        user_id = entry['UserId']['S']
-        url = f"https://discord.com/api/v9/users/{user_id}"
-        user_response = requests.get(url, headers=headers)
-        user_object = json.loads(user_response.content)
-        username = user_object['username']
-        usernames_map[user_id] = f"{username}#{user_object['discriminator']}"
-        num_spaces = 16 - len(username)
-        new_sniper_table += "`" + str(rank + 1) + ":  " + username + "#" + user_object['discriminator'] + (" " * num_spaces) + snipe_count + "`\n"
-    new_sniper_table_field = [{"name":"`Rank   User         Snipes`","value":new_sniper_table,"inline":True}]
-    
-    new_snipee_table = ""
-    for rank, entry in enumerate(snipee_response['Items']):
-        snipe_count = entry['AsSnipee']['N']
-        user_id = entry['UserId']['S']
-        username = ""
-        if user_id in usernames_map:
-            username = usernames_map[user_id]
-        else:
-            url = f"https://discord.com/api/v9/users/{user_id}"
-            user_response = requests.get(url, headers=headers)
-            user_object = json.loads(user_response.content)
-            username = user_object['username'] + "#" + user_object['discriminator']
-        num_spaces = 21 - len(username)
-        new_snipee_table += "`" + str(rank + 1) + ":  " + username + (" " * num_spaces) + snipe_count + "`\n"
-    new_snipee_table_field = [{"name":"`Rank   User         Snipes`","value":new_snipee_table,"inline":True}]
-    
-    return {
-        "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
-        "data": {
-            "tts": False,
-            "content": "",
-            "embeds": [
-                {
-                    "title": "Sniper Leaderboard",
-                    "type": "rich",
-                    "color": 1752220,
-                    "fields": new_sniper_table_field
-                },
-                {
-                    "title": "Snipee Leaderboard",
-                    "type": "rich",
-                    "color": 1752220,
-                    "fields": new_snipee_table_field
-                }
-            ],
-            "allowed_mentions": []
-        }
-    }
-
 def lambda_handler(event, context):
     # verify the signature
     try:
@@ -370,7 +274,21 @@ def lambda_handler(event, context):
     
     operation = event['body-json']['data']['name']
     if operation == "snipe-leaderboard":
-        return get_top()
+        params = {'InteractionToken':event['body-json']['token']}
+        response = lambda_client.invoke(
+            FunctionName='SniperBot-SniperBotInteraction',
+            Payload=json.dumps(params),
+            InvocationType='Event'
+        )
+        return {
+            "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
+            "data": {
+                "tts": False,
+                "content": "Processing...",
+                "embeds": [],
+                "allowed_mentions": []
+            }
+        }
     elif operation == "snipe-rank":
         return get_own_rank(event['body-json']['member']['user']['id'])
     elif operation == "snipe-void":

@@ -2,6 +2,7 @@ from constructs import Construct
 from aws_cdk import (
     Stack,
     aws_lambda as _lambda,
+    aws_iam as iam,
     aws_apigateway as apigw,
     Duration,
     aws_dynamodb as dynamodb,
@@ -31,7 +32,6 @@ class SniperBotStack(Stack):
             table_name="SnipeLeaderboards",
             partition_key=dynamodb.Attribute(name="UserId", type=dynamodb.AttributeType.STRING),
             billing_mode=dynamodb.BillingMode.PROVISIONED
-
         )
 
         leaderboardTable.add_global_secondary_index(
@@ -60,21 +60,39 @@ class SniperBotStack(Stack):
         )
 
         # Defines an AWS Lambda resource
-        my_lambda = _lambda.Function(
+        command_lambda = _lambda.Function(
             self,
             id + 'Handler',
+            function_name=id + '-' + id + 'Handler',
             runtime=_lambda.Runtime.PYTHON_3_9,
             code=_lambda.Code.from_asset('src'),
             handler='lambda_function.lambda_handler',
             timeout=Duration.seconds(3),
-            architecture= _lambda.Architecture.X86_64,
+            architecture=_lambda.Architecture.X86_64,
+            layers=[layer]
+        )
+
+        # the Discord Bot Interaction Lambda
+        interaction_lambda = _lambda.Function(
+            self,
+            id + 'Interaction',
+            function_name=id + '-' + id + 'Interaction',
+            runtime=_lambda.Runtime.PYTHON_3_9,
+            code=_lambda.Code.from_asset('src'),
+            handler='lambda_interaction.lambda_handler',
+            timeout=Duration.seconds(20),
+            architecture=_lambda.Architecture.X86_64,
             layers=[layer]
         )
 
         # Grant access to tables
+        snipeTable.grant_full_access(command_lambda)
+        snipeTable.grant_full_access(interaction_lambda)
+        leaderboardTable.grant_full_access(command_lambda)
+        leaderboardTable.grant_full_access(interaction_lambda)
 
-        snipeTable.grant_full_access(my_lambda)
-        leaderboardTable.grant_full_access(my_lambda)
+        # Grant command_lambda access to invoke the interaction_lambda
+        interaction_lambda.grant_invoke(command_lambda)
 
         api = apigw.RestApi(
             self, id + 'Endpoint',
@@ -87,14 +105,15 @@ class SniperBotStack(Stack):
             'POST',
             method_responses=[apigw.MethodResponse(status_code="200"), apigw.MethodResponse(status_code="401")],
             integration=apigw.LambdaIntegration(
-                handler=my_lambda,
+                handler=command_lambda,
                 proxy=False,
                 passthrough_behavior=apigw.PassthroughBehavior.WHEN_NO_MATCH,
                 integration_responses=[
-                    apigw.IntegrationResponse(status_code="401", selection_pattern=".*[UNAUTHORIZED].*"),
-                    apigw.IntegrationResponse(status_code="200")],
-                    request_templates= {
-                        "application/json" : requestSchema
-                    }
-                ),
-            )
+                        apigw.IntegrationResponse(status_code="401", selection_pattern=".*[UNAUTHORIZED].*"),
+                        apigw.IntegrationResponse(status_code="200")
+                    ],
+                request_templates= {
+                    "application/json" : requestSchema
+                }
+            ),
+        )
