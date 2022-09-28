@@ -2,7 +2,6 @@ from constructs import Construct
 from aws_cdk import (
     Stack,
     aws_lambda as _lambda,
-    aws_iam as iam,
     aws_apigateway as apigw,
     Duration,
     aws_dynamodb as dynamodb,
@@ -16,9 +15,7 @@ class SniperBotStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
-
         # Create DynamoDb Tables
-
         snipeTable = dynamodb.Table(
             self,
             id + "SnipeTable",
@@ -49,7 +46,6 @@ class SniperBotStack(Stack):
             projection_type=dynamodb.ProjectionType.ALL
         )
 
-
         # Making a layer for the lambda
         layer = _lambda.LayerVersion(
             self,
@@ -59,40 +55,42 @@ class SniperBotStack(Stack):
             compatible_architectures=[_lambda.Architecture.X86_64]
         )
 
-        # Defines an AWS Lambda resource
-        command_lambda = _lambda.Function(
+        # this function is invoked by the API gateway endpoint, and is responsible for
+        # everything except computing the top 20 leaderboards
+        interaction_lambda = _lambda.Function(
             self,
-            id + 'Handler',
-            function_name=id + '-' + id + 'Handler',
+            id + 'InteractionHandler',
+            function_name='SniperBotInteractionHandler',
             runtime=_lambda.Runtime.PYTHON_3_9,
             code=_lambda.Code.from_asset('src'),
-            handler='lambda_function.lambda_handler',
+            handler='lambda_interaction.lambda_handler',
             timeout=Duration.seconds(3),
             architecture=_lambda.Architecture.X86_64,
             layers=[layer]
         )
 
-        # the Discord Bot Interaction Lambda
-        interaction_lambda = _lambda.Function(
+        # this function is invoked by SniperBotInteractionHandler in order to calculate the leaderboards
+        # eventually this may be extended to handler the business logic of all the different commands
+        # instead of only snipe-leaderboard
+        command_lambda = _lambda.Function(
             self,
-            id + 'Interaction',
-            function_name=id + '-' + id + 'Interaction',
+            id + 'CommandHandler',
+            function_name='SniperBotCommandHandler',
             runtime=_lambda.Runtime.PYTHON_3_9,
             code=_lambda.Code.from_asset('src'),
-            handler='lambda_interaction.lambda_handler',
+            handler='lambda_command.lambda_handler',
             timeout=Duration.seconds(20),
             architecture=_lambda.Architecture.X86_64,
             layers=[layer]
         )
 
         # Grant access to tables
-        snipeTable.grant_full_access(command_lambda)
         snipeTable.grant_full_access(interaction_lambda)
-        leaderboardTable.grant_full_access(command_lambda)
         leaderboardTable.grant_full_access(interaction_lambda)
+        leaderboardTable.grant_full_access(command_lambda)
 
-        # Grant command_lambda access to invoke the interaction_lambda
-        interaction_lambda.grant_invoke(command_lambda)
+        # Grant interaction_lambda access to invoke the command_lambda
+        command_lambda.grant_invoke(interaction_lambda)
 
         api = apigw.RestApi(
             self, id + 'Endpoint',
@@ -105,7 +103,7 @@ class SniperBotStack(Stack):
             'POST',
             method_responses=[apigw.MethodResponse(status_code="200"), apigw.MethodResponse(status_code="401")],
             integration=apigw.LambdaIntegration(
-                handler=command_lambda,
+                handler=interaction_lambda,
                 proxy=False,
                 passthrough_behavior=apigw.PassthroughBehavior.WHEN_NO_MATCH,
                 integration_responses=[
