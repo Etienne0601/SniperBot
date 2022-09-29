@@ -60,21 +60,38 @@ def lambda_handler(event, context):
 
     new_sniper_table = ""
     usernames_map = {} # map of user ids to user strings
+    calc_rank = 0
+    last_snipe_count = 100000 # TODO change to max int
     for rank, entry in enumerate(sniper_response['Items']):
         snipe_count = entry['AsSniper']['N']
+        calc_rank_str = "  "
+        if int(snipe_count) < last_snipe_count:
+            calc_rank = rank + 1
+            calc_rank_str = "#" + str(calc_rank)
+            last_snipe_count = int(snipe_count)
         user_id = entry['UserId']['S']
         url = f"https://discord.com/api/v9/users/{user_id}"
         user_response = requests.get(url, headers=HEADERS)
         user_object = json.loads(user_response.content)
-        username = user_object['username']
-        usernames_map[user_id] = f"{username}#{user_object['discriminator']}"
-        num_spaces = 16 - len(username)
-        new_sniper_table += "`" + str(rank + 1) + ":  " + username + "#" + user_object['discriminator'] + (" " * num_spaces) + snipe_count + "`\n"
-    new_sniper_table_field = [{"name":"`Rank   User         Snipes`","value":new_sniper_table,"inline":True}]
+        username = f"{user_object['username']}#{user_object['discriminator']}"
+        usernames_map[user_id] = username
+        rank_padding = " " * (4 - len(calc_rank_str))
+        num_spaces = 24 - len(username) - len(snipe_count)
+        num_spaces = max(num_spaces, 2)
+        new_sniper_table += "`" + calc_rank_str + rank_padding + username + (" " * num_spaces) + snipe_count + "`\n"
+    new_sniper_table_field = [{"name":"`    User              Snipes`","value":new_sniper_table,"inline":True}]
     
+
     new_snipee_table = ""
+    calc_rank = 0
+    last_snipe_count = 100000 # TODO change to max int
     for rank, entry in enumerate(snipee_response['Items']):
         snipe_count = entry['AsSnipee']['N']
+        calc_rank_str = "  "
+        if int(snipe_count) < last_snipe_count:
+            calc_rank = rank + 1
+            calc_rank_str = "#" + str(calc_rank)
+            last_snipe_count = int(snipe_count)
         user_id = entry['UserId']['S']
         username = ""
         if user_id in usernames_map:
@@ -83,10 +100,13 @@ def lambda_handler(event, context):
             url = f"https://discord.com/api/v9/users/{user_id}"
             user_response = requests.get(url, headers=HEADERS)
             user_object = json.loads(user_response.content)
-            username = user_object['username'] + "#" + user_object['discriminator']
-        num_spaces = 21 - len(username)
-        new_snipee_table += "`" + str(rank + 1) + ":  " + username + (" " * num_spaces) + snipe_count + "`\n"
-    new_snipee_table_field = [{"name":"`Rank   User         Snipes`","value":new_snipee_table,"inline":True}]
+            username = f"{user_object['username']}#{user_object['discriminator']}"
+        rank_padding = " " * (4 - len(calc_rank_str))
+        num_spaces = 24 - len(username) - len(snipe_count)
+        num_spaces = max(num_spaces, 2)
+        new_snipee_table += "`" + calc_rank_str + rank_padding + username + (" " * num_spaces) + snipe_count + "`\n"
+    new_snipee_table_field = [{"name":"`    User              Snipes`","value":new_snipee_table,"inline":True}]
+
     data = {
         "tts": False,
         "content": "",

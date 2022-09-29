@@ -119,16 +119,11 @@ def process_snipe(evnt_body):
             }
         )
     
-    fields = []
-    snipe_ids = ""
-    snipees = ""
+    new_snipes_table = ""
     for snipee_id, snipeid_username in snipee_ids.items():
         snipe_id, username = snipeid_username.split('#')
-        snipe_ids += "\n`" + snipe_id + "`"
-        snipees += "\n" + username
-    
-    fields.append({"name":"SnipeId","value":snipe_ids,"inline":True})
-    fields.append({"name":"Snipee","value":snipees,"inline":True})
+        new_snipes_table += "`" + snipe_id + "   " + username + "`\n"
+    new_snipes_table_field = [{"name":"`SnipeId    Snipee`","value":new_snipes_table,"inline":True}]
     
     return {
         "type": 4, # CHANNEL_MESSAGE_WITH_SOURCE
@@ -139,7 +134,7 @@ def process_snipe(evnt_body):
                 "title": "Snipes Recorded",
                 "type": "rich",
                 "color": 1752220,
-                "fields": fields
+                "fields": new_snipes_table_field
             }],
             "allowed_mentions": []
         }
