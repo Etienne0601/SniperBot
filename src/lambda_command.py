@@ -14,6 +14,8 @@ HEADERS = {
 
 dynamodb = boto3.client('dynamodb')
 
+TABLE_HEADER = "`    User                   Snipes`"
+
 def lambda_handler(event, context):
     interaction_token = event['InteractionToken']
     message_url = f"https://discord.com/api/v10/webhooks/{constants.APP_ID}/{interaction_token}/messages/@original"
@@ -78,8 +80,9 @@ def lambda_handler(event, context):
         rank_padding = " " * (4 - len(calc_rank_str))
         num_spaces = 24 - len(username) - len(snipe_count)
         num_spaces = max(num_spaces, 2)
-        new_sniper_table += "`" + calc_rank_str + rank_padding + username + (" " * num_spaces) + snipe_count + "`\n"
-    new_sniper_table_field = [{"name":"`    User              Snipes`","value":new_sniper_table,"inline":True}]
+        new_leaderboard_entry = f"`{calc_rank_str:3.3} {username:25.25}{snipe_count:>4.4}`\n"
+        new_sniper_table += new_leaderboard_entry
+    new_sniper_table_field = [{"name":TABLE_HEADER,"value":new_sniper_table,"inline":True}]
     
 
     new_snipee_table = ""
@@ -104,8 +107,9 @@ def lambda_handler(event, context):
         rank_padding = " " * (4 - len(calc_rank_str))
         num_spaces = 24 - len(username) - len(snipe_count)
         num_spaces = max(num_spaces, 2)
-        new_snipee_table += "`" + calc_rank_str + rank_padding + username + (" " * num_spaces) + snipe_count + "`\n"
-    new_snipee_table_field = [{"name":"`    User              Snipes`","value":new_snipee_table,"inline":True}]
+        new_leaderboard_entry = f"`{calc_rank_str:3.3} {username:25.25}{snipe_count:>4.4}`\n"
+        new_snipee_table += new_leaderboard_entry
+    new_snipee_table_field = [{"name":TABLE_HEADER,"value":new_snipee_table,"inline":True}]
 
     data = {
         "tts": False,
